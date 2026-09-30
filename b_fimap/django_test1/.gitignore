@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+!data/flight_map.sqlite3
+.env
+.idea/
+data/routes/*.geojson
+data/imports/ourairports_airports.csv

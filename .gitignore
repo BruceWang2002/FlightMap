@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+!b_fimap/django_test1/data/flight_map.sqlite3
+.env
+node_modules/
+dist/
+.idea/
+.vscode/
+.DS_Store
+release-*/
+.codex-archive/
+f_fimap/.history/
+f_fimap/src/components/resume.html
+f_fimap/src/assets/resume/
+f_fimap/src/assets/profile.jpg

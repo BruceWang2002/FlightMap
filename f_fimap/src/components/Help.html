@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/src/assets/help.png" type="image/png">
+    <title>使用帮助</title>
+    <style>
+        :root {
+            font-size: 16px;
+            /* 设定根元素的字体大小 */
+        }
+
+        .head-container {
+            font-family: 'Times New Roman', serif;
+            width: 850px;
+
+        }
+
+        .welcome {
+            font-size: 1.1rem;
+        }
+
+        .legend {
+            font-size: 1.05rem;
+        }
+
+        .border-line {
+            border-bottom: 1px solid #545454;
+            /* 底部边框作为横线 */
+        }
+
+        .image-text-container {
+            display: flex;
+            /* 启用Flexbox布局 */
+            align-items: center;
+            /* 垂直居中对齐 */
+        }
+
+        .image-class {
+            /* 确保图片不是Flexbox容器的一部分 */
+            margin-right: 10px;
+            /* 给文字留出空间 */
+            max-width: 45px;
+            /* 设置图片最大宽度为300像素 */
+            max-height: 45px;
+            /* 设置图片最大高度为200像素 */
+        }
+
+        .image-class-aircraft {
+            margin-right: 10px;
+            /* 给文字留出空间 */
+            max-width: 35px;
+            /* 设置图片最大宽度为300像素 */
+            max-height: 35px;
+            /* 设置图片最大高度为200像素 */
+        }
+
+        .image-class-weather {
+            margin-right: 10px;
+            /* 给文字留出空间 */
+            max-width: 300px;
+            /* 设置图片最大宽度为300像素 */
+            max-height: 300px;
+            /* 设置图片最大高度为200像素 */
+        }
+
+        .text-class {
+            font-weight: bold;
+        }
+
+        .intro-class {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<h1 style="color: #003663;font-weight: normal;">FImap使用帮助</h1>
+<div class="head-container">
+    <div class="welcome">欢迎来到FImap,这是一个用于实时查看飞机轨迹的网站。该网站拥有欧洲11,435个机场的信息,服务区内飞机的实时飞行数据,以及实时的降水和气压等气象数据。
+    </div>
+    <div style="height: 10px;"></div>
+    <div class="legend">以下是地图图例的一些说明。</div>
+    <h2 style="color: #003663;">地图图例</h2>
+    <h3>机场</h3>
+    <div class="border-line"></div>
+    <div class="image-text-container">
+        <img src="/src/assets/marker/大型机场.svg" class="image-class">
+        <div class="text-class">
+            大型机场
+        </div>
+        <div class="intro-class">
+            有定期的航空公司服务，支持国际航空任务，每年有数百万乘客或为主要军事基地。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/marker/中型机场.svg" class="image-class">
+        <div class="text-class">
+            中型机场
+        </div>
+        <div class="intro-class">
+            有定期区域航空服务的中型陆地机场，支持定期的通用航空或军事交通。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/marker/小型机场.svg" class="image-class">
+        <div class="text-class">
+            小型机场
+        </div>
+        <div class="intro-class">
+            很少或没有定期航班服务，通用航空交通较少。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/marker/直升机场.svg" class="image-class">
+        <div class="text-class">
+            直升机场
+        </div>
+        <div class="intro-class">
+            没有跑道的直升机停机坪，可供直升机、轻微型多旋翼飞机使用。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/marker/水上飞机.svg" class="image-class">
+        <div class="text-class">
+            水上机场
+        </div>
+        <div class="intro-class">
+            水上飞机的停靠/加油区，没有陆地飞机的设施。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/marker/热气球.svg" class="image-class">
+        <div class="text-class">
+            热气球基地
+        </div>
+        <div class="intro-class">
+            为热气球提供起降和服务的基础设施。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/marker/停用机场.svg" class="image-class">
+        <div class="text-class">
+            关闭/无服务的机场
+        </div>
+        <div class="intro-class">
+            不再运营任何类型飞机的机场，可作为迫降场地。
+        </div>
+    </div>
+    <div class="border-line"></div>
+    <h3>飞行器</h3>
+    <div class="border-line"></div>
+    <div class="image-text-container">
+        <img src="/src/assets/aircraft/aircraft0.png" class="image-class-aircraft">
+        <div class="text-class">
+            Aircraft-0
+        </div>
+        <div class="intro-class">
+            飞行器高度为0，飞行器处于非起飞状态。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/aircraft/aircraft1.png" class="image-class-aircraft">
+        <div class="text-class">
+            Aircraft-1
+        </div>
+        <div class="intro-class">
+            飞机的高度在600m以下。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/aircraft/aircraft2.png" class="image-class-aircraft">
+        <div class="text-class">
+            Aircraft-2
+        </div>
+        <div class="intro-class">
+            飞机的高度在600米到2000米之间。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/aircraft/aircraft3.png" class="image-class-aircraft">
+        <div class="text-class">
+            Aircraft-3
+        </div>
+        <div class="intro-class">
+            飞机的高度在2000m至4000m之间。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/aircraft/aircraft4.png" class="image-class-aircraft">
+        <div class="text-class">
+            Aircraft-4
+        </div>
+        <div class="intro-class">
+            飞机的高度在4000m至6000m之间。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/aircraft/aircraft5.png" class="image-class-aircraft">
+        <div class="text-class">
+            Aircraft-5
+        </div>
+        <div class="intro-class">
+            飞机的高度在6000m至8000m之间。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/aircraft/aircraft6.png" class="image-class-aircraft">
+        <div class="text-class">
+            Aircraft-6
+        </div>
+        <div class="intro-class">
+            飞机的高度在8000m至10000m之间。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/aircraft/aircraft7.png" class="image-class-aircraft">
+        <div class="text-class">
+            Aircraft-7
+        </div>
+        <div class="intro-class">
+            飞机的高度在10000m至12000m之间。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/aircraft/aircraft8.png" class="image-class-aircraft">
+        <div class="text-class">
+            Aircraft-8
+        </div>
+        <div class="intro-class">
+            飞机的高度在12000m至13000m之间。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/aircraft/aircraft9.png" class="image-class-aircraft">
+        <div class="text-class">
+            Aircraft-9
+        </div>
+        <div class="intro-class">
+            飞机的高度超过13000m。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/aircraft/aircraft_highlight.png" class="image-class-aircraft">
+        <div class="text-class">
+            Aircraft-highlight
+        </div>
+        <div class="intro-class">
+            飞机已被选中将高亮显示，。
+        </div>
+    </div>
+    <div class="border-line"></div>
+    <h3>气象服务</h3>
+    <div class="border-line"></div>
+    <div class="image-text-container">
+        <img src="/src/assets/weather/clouds_new.jpg" class="image-class-weather">
+        <div class="text-class">
+            云
+        </div>
+        <div class="intro-class">
+            云数据通常包含一个百分比值，该值指示天空被云覆盖的程度。
+            <br>
+            反映各种天气状况，如晴天、多云、多云等。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/weather/precipitation_new.JPG" class="image-class-weather">
+        <div class="text-class">
+            降水
+        </div>
+        <div class="intro-class">
+            降水数据通常包括降水发生概率的百分比。
+            <br>
+            通常实时更新，以确保用户能够访问最新的地区降雨变化。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/weather/pressure_new.JPG" class="image-class-weather">
+        <div class="text-class">
+            气压
+        </div>
+        <div class="intro-class">
+            气压数据是相对于海平面的压力的测量值。
+            <br>
+            通常实时更新，确保用户能够访问当前的大气压状况。
+        </div>
+    </div>
+    <div class="image-text-container">
+        <img src="/src/assets/weather/wind_new.JPG" class="image-class-weather">
+        <div class="text-class">
+            风速
+        </div>
+        <div class="intro-class">
+            风速通常以米/秒 (m/s) 或公里/小时 (km/h) 表示。
+            <br>
+            通常实时更新,包括当前时间段内的平均风速。
+        </div>
+    </div>
+    <div class="border-line"></div>
+
+    <body>
+
+    </body>
+
+</html>

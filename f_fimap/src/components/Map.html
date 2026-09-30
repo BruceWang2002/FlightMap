@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/src/assets/Map.png" type="image/png">
+    <title>地图说明</title>
+    <style>
+        :root {
+            font-size: 16px;
+            /* 设定根元素的字体大小 */
+        }
+
+        .image-container {
+            text-align: center;
+            /* 文字水平居中 */
+            margin: auto;
+            /* 容器自动边距 */
+            position: relative;
+            /* 设置为相对定位 */
+        }
+
+        .image-container img {
+            width: 600px;
+            /* 设置图片宽度 */
+            height: auto;
+            /* 保持图片比例 */
+            display: block;
+            /* 使图片为块级元素 */
+            margin-left: auto;
+            /* 右外边距自动，左外边距0 */
+            margin-right: auto;
+            /* 左外边距自动，右外边距0 */
+        }
+
+        .image-container .caption {
+            position: absolute;
+            /* 设置为绝对定位 */
+            top: 0px;
+            /* 文字距离图片顶部的位置 */
+            width: 100%;
+            /* 文字宽度 */
+            background-color: white;
+            /* 文字背景色 */
+            color: white;
+            /* 文字颜色 */
+            padding: 5px;
+            /* 文字内边距 */
+            text-align: center;
+            /* 文字水平居中 */
+        }
+
+        .custom-font-size {
+            font-size: 2rem;
+            /* 相对于根元素的字体大小 */
+            color: #003663;
+            /* 文字颜色 */
+            font-weight: bold;
+            font-family: 'Times New Roman', serif;
+        }
+
+        .Introduction-container {
+            font-size: 1.1rem;
+            /* 相对于根元素的字体大小 */
+            color: #020202;
+            /* 文字颜色 */
+            font-family: 'Times New Roman', serif;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 4px 1fr;
+            /* 定义三列，中间一列为分隔线，可以根据需要调整分隔线的宽度 */
+            grid-gap: 0;
+            /* 移除默认的栅格间隙 */
+            color: #020202;
+            /* 文字颜色 */
+            font-family: 'Times New Roman', serif;
+        }
+
+        .separator {
+            background-color: #000;
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+            /* 设置为列布局以允许文本换行 */
+            align-items: center;
+            /* 垂直居中内容 */
+            justify-content: center;
+            /* 水平居中内容 */
+            padding: 0;
+            /* 确保没有内边距影响布局 */
+            margin: 0;
+            /* 确保没有外边距影响布局 */
+            text-align: center;
+            /* 如果需要，使文本在水平方向上居中 */
+            flex-wrap: wrap;
+            /* 允许文本换行 */
+        }
+
+        .Technical-route {
+            text-align: center;
+            /* 文字水平居中 */
+            margin: auto;
+            /* 容器自动边距 */
+            position: relative;
+            /* 设置为相对定位 */
+            color: #020202;
+            /* 文字颜色 */
+            font-family: 'Times New Roman', serif;
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 插入图片，替换 'your-image.jpg' 为你的图片文件名 -->
+    <div class="image-container">
+        <!-- 文字 -->
+        <div class="caption">
+
+        </div>
+        <!-- 图片 -->
+        <img src="/src/assets/Aircraft.jpg">
+        <div style="height: 10px;"></div>
+        <div class="custom-font-size">Aircraft Track</div>
+        <div class="Introduction-container">
+            <div style="height: 30px;"></div>
+            <div style="font-weight: bold">针对欧洲飞机状况的实时视觉化</div>
+            <div style="height: 20px;"></div>
+            <div>包括</div>
+            <div style="height: 10px;"></div>
+            <div>飞机实时更新</div>
+            <div style="height: 10px;"></div>
+            <div>飞机轨迹展示</div>
+            <div style="height: 10px;"></div>
+            <div>机场信息查看</div>
+            <div style="height: 10px;"></div>
+            <div>气象数据叠加</div>
+            <div style="height: 10px;"></div>
+            <div>空域结构信息</div>
+            <div style="height: 50px;"></div>
+            <div style="font-weight: bold">关于数据源</div>
+            <div style="height: 20px;"></div>
+        </div>
+        <div class="grid-container">
+            <div class="content">
+                <div style="font-weight: bold">飞机数据</div>
+                <div style="height: 150px;"></div>
+                <div style="font-weight: bold"><br>气象数据</div>
+                <div style="height: 120px;"></div>
+                <div style="font-weight: bold"><br>机场数据</div>
+                <div style="height: 120px;"></div>
+                <div style="font-weight: bold"><br>空域数据</div>
+                <div style="height: 120px;"></div>
+                <div style="font-weight: bold"><br>3D建筑数据</div>
+            </div>
+            <div class="separator"></div>
+            <div class="content">
+                <a href="https://opensky-network.org/" target="_blank">The OpenSky Network</a>
+                <div><br>实时更新
+                    <br>覆盖全球范围内的航班，包括商业航班、私人飞机以及货运航班;
+                    <br>数据丰富,提供航班号、起飞、降落时间、飞行高度、速度、航向等详细数据;
+                    <br>整合来自多个航空数据源的信息，提供更全面和准确的航班数据。
+                </div>
+
+                <div style="height: 50px;"></div>
+                <a href="https://openweathermap.org/" target="_blank">Current weather and forecast-OpenWeatherMap</a>
+                <div>
+                    <br>提供多种天气指标,包括降水、气温、大气压力、云量等详细数据;
+                    <br>气象数据频繁更新,以获得最新的天气信息;
+                    <br>提供一定时间内的天气预报,具备预报功能。
+                </div>
+                <div style="height: 50px;"></div>
+                <a href="https://ourairports.com/airports/" target="_blank">OurAirports</a>
+                <div>
+                    <br>全面性:"Our Airports"数据库包含了全球范围内的民用和军用机场信息;
+                    <br>数据丰富:数据集通常包括机场的名称、位置、经纬度、海拔高度、跑道信息、机场服务类型等;
+                    <br>地理信息:提供机场的地理坐标，便于进行地图可视化和地理位置分析。
+                </div>
+                <div style="height: 50px;"></div>
+                <a href="https://www.openaip.net/" target="_blank">OpenAip</a>
+                <div>
+                    <br>openaip 平台提供最新和精确的全球航空数据;
+                    <br>数据集通常包括空域、导航点、报高点、飞行障碍物、热点信息等;
+                    <br>提供数据与API供开发人员非商务性免费使用。
+                </div>
+                <div style="height: 50px;"></div>
+                <a href="https://cesium.com/platform/cesium-ion/content/cesium-osm-buildings/" target="_blank">OSM Building</a>
+                <div>
+                    <br>Cesium OSM Buildings 是一个覆盖整个世界的 3D 建筑物图层。
+                    <br>源自OpenStreetMap，包含超过 3.5 亿个建筑物以及每个建筑物的元数据。
+                    <br>包括建筑物基本信息，如名称和高度、地址、开放时间，甚至建筑物各个部分的材料类型。
+                </div>
+            </div>
+            <div style="height: 100px;"></div>
+        </div>
+        <div class="Technical-route">
+            <div style="font-weight: bold">关于技术路线</div>
+            <div style="height:7px;"></div>
+            <div>本系统前端开发采用 Vue 3+Element Plus 来构建响应式用户界面,</div>
+            <div style="height:7px;"></div>
+            <div>结合 Leaflet 创建和显示交互式地图;</div>
+            <div style="height:7px;"></div>
+            <div>后端开发基于Python语言，结合GeoDjango框架扩展Web应用,</div>
+            <div style="height:7px;"></div>
+            <div>利用PostGIS作为PostgreSQL数据库的扩展，存储、查询和管理复杂的地理空间数据。</div>
+            <div style="height:7px;"></div>
+            <div>部署GeoServer作为地理空间数据服务器，提供多种地图服务标准。</div>
+            <div style="height:7px;"></div>
+        </div>
+    </div>
+</body>
+
+</html>

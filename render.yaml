@@ -1,0 +1,33 @@
+services:
+  # Public read-only Django API.  The committed SQLite snapshot makes the
+  # demonstration data available on Render's ephemeral free instances.
+  - type: web
+    runtime: python
+    name: flight-map-api
+    plan: free
+    buildCommand: cd b_fimap/django_test1 && pip install -r requirements.txt && python manage.py migrate --noinput
+    startCommand: cd b_fimap/django_test1 && gunicorn django_test1.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: ".onrender.com,localhost,127.0.0.1"
+      - key: CORS_ALLOW_ALL_ORIGINS
+        value: "true"
+
+  # Vue/Vite client.  Render will ask for VITE_API_ROOT during Blueprint
+  # creation; paste the API service URL followed by /api/v1.
+  - type: web
+    runtime: static
+    name: flight-map-web
+    buildCommand: cd f_fimap && npm ci && npm run build
+    staticPublishPath: f_fimap/dist
+    envVars:
+      - key: VITE_API_ROOT
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

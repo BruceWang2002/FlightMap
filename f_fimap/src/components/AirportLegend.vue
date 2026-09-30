@@ -1,0 +1,3 @@
+<template><section class="legend"><p>机场按级别和缩放层级渲染，避免一次绘制全部点位。</p><div v-for="type in AIRPORT_TYPES" :key="type.id" class="row"><i :style="{ background: type.color, width: `${type.radius * 2}px`, height: `${type.radius * 2}px` }" />{{ type.label }}<small>≥ {{ type.minZoom }} 级</small></div></section></template>
+<script setup>import { AIRPORT_TYPES } from '../config/mapLayers'</script>
+<style scoped>.legend { font-size: 12px; color: #aec5d5; }.legend p { margin: 8px 0; line-height: 1.5; }.row { display: flex; align-items: center; gap: 8px; margin: 7px 0; }.row i { border-radius: 50%; box-shadow: 0 0 4px #0008; }.row small { margin-left: auto; color: #7fa0b7; }</style>
