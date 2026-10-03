@@ -3,6 +3,7 @@ from . import views
 
 urlpatterns = [
     path("health/", views.health),
+    path("weather/", views.weather_forecast),
     path("aircraft/", views.aircraft_collection),
     path("aircraft/<str:icao24>/track/", views.aircraft_track),
     path("airports/", views.airport_collection),

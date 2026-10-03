@@ -1,16 +1,56 @@
-<template><aside ref="panel" class="flight-panel" :class="{ collapsed }" :style="panelStyle" aria-label="航班列表"><header @pointerdown="startDrag"><div><p>FLIGHT DATA</p><h2>航班列表（{{ flights.length }}）</h2></div><div class="panel-actions"><button type="button" @pointerdown.stop @click.stop="collapsed = !collapsed">{{ collapsed ? '展开' : '收起' }}</button><button type="button" @pointerdown.stop @click.stop="$emit('close')">关闭</button></div></header><div v-show="!collapsed" class="table-scroll"><table><thead><tr><th>航班 / ICAO24</th><th>国家</th><th>位置</th><th>高度</th><th>速度</th><th>航向</th><th>爬升率</th><th>更新时间</th></tr></thead><tbody><tr v-for="flight in flights" :key="flight.properties.icao24" :data-icao="flight.properties.icao24" :class="{ active: selectedIcao24 === flight.properties.icao24 }" @click="$emit('select', flight)"><td><b>{{ flight.properties.callsign || '—' }}</b><small>{{ flight.properties.icao24 }}</small></td><td>{{ flight.properties.origin_country || '—' }}</td><td>{{ coordinate(flight) }}</td><td>{{ metric(flight.properties.altitude_m, 'm') }}</td><td>{{ metric(flight.properties.velocity_ms, 'm/s') }}</td><td>{{ metric(flight.properties.track_deg, '°') }}</td><td>{{ metric(flight.properties.vertical_rate_ms, 'm/s') }}</td><td>{{ dateTime(flight.properties.observed_at) }}</td></tr></tbody></table></div></aside></template>
+<template>
+  <FloatingPanel ref="floatingPanel" :title="`航班列表（${flights.length}）`" eyebrow="FLIGHT DATA"
+    :width="800" :height="460" :mobile-ratio=".44" align="right" @close="$emit('close')" @expanded="revealSelection">
+    <table ref="table">
+      <thead><tr><th v-for="label in columns" :key="label">{{ label }}</th></tr></thead>
+      <tbody>
+        <tr v-for="flight in flights" :key="flight.properties.icao24" :data-icao="flight.properties.icao24"
+          :class="{ active: selectedIcao24 === flight.properties.icao24 }" tabindex="0"
+          @click="$emit('select', flight)" @keydown.enter="$emit('select', flight)">
+          <td><b>{{ flight.properties.callsign || '—' }}</b><small>{{ flight.properties.icao24 }}</small></td>
+          <td>{{ flight.properties.origin_country || '—' }}</td>
+          <td>{{ coordinate(flight) }}</td>
+          <td>{{ metric(flight.properties.altitude_m, 'm') }}</td>
+          <td>{{ metric(flight.properties.velocity_ms, 'm/s') }}</td>
+          <td>{{ metric(flight.properties.track_deg, '°') }}</td>
+          <td>{{ metric(flight.properties.vertical_rate_ms, 'm/s') }}</td>
+          <td>{{ dateTime(flight.properties.observed_at) }}</td>
+        </tr>
+        <tr v-if="!flights.length"><td :colspan="columns.length">当前没有航班数据。</td></tr>
+      </tbody>
+    </table>
+  </FloatingPanel>
+</template>
 
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { nextTick, ref, watch } from 'vue'
+import FloatingPanel from './FloatingPanel.vue'
+
 defineEmits(['close', 'select'])
 const props = defineProps({ flights: { type: Array, default: () => [] }, selectedIcao24: String })
-const panel = ref(null); const position = ref(null); const collapsed = ref(false)
-const panelStyle = computed(() => position.value ? { left: `${position.value.left}px`, top: `${position.value.top}px`, right: 'auto' } : {})
+const columns = ['航班 / ICAO24', '国家', '位置', '高度', '速度', '航向', '爬升率', '更新时间']
+const floatingPanel = ref(null)
+const table = ref(null)
+
 function metric(value, unit) { return value == null ? '—' : `${Math.round(value)} ${unit}` }
-function coordinate(flight) { const [lng, lat] = flight.geometry.coordinates; return `${lat.toFixed(3)}, ${lng.toFixed(3)}` }
+function coordinate(flight) { return flight.geometry.coordinates.slice(0, 2).reverse().map(value => value.toFixed(3)).join(', ') }
 function dateTime(value) { return value ? new Date(value).toLocaleString() : '—' }
-function startDrag(event) { if (event.button !== 0 || !panel.value) return; const rect = panel.value.getBoundingClientRect(); const parentRect = panel.value.parentElement.getBoundingClientRect(); position.value = { left: rect.left - parentRect.left, top: rect.top - parentRect.top }; const origin = { x: event.clientX, y: event.clientY, left: position.value.left, top: position.value.top }; const move = (moveEvent) => { position.value = { left: Math.max(0, origin.left + moveEvent.clientX - origin.x), top: Math.max(0, origin.top + moveEvent.clientY - origin.y) } }; const end = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end) }; window.addEventListener('pointermove', move); window.addEventListener('pointerup', end) }
-watch(() => props.selectedIcao24, async (icao24) => { if (!icao24) return; await nextTick(); panel.value?.querySelector(`[data-icao="${icao24}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) })
+async function revealSelection() {
+  await nextTick()
+  const row = Array.from(table.value?.querySelectorAll('[data-icao]') ?? [])
+    .find(element => element.dataset.icao === props.selectedIcao24)
+  floatingPanel.value?.reveal(row)
+}
+watch(() => [props.selectedIcao24, props.flights], revealSelection, { immediate: true, flush: 'post' })
 </script>
 
-<style scoped>.flight-panel{position:absolute;z-index:950;top:16px;right:16px;width:800px;height:460px;min-width:520px;min-height:180px;max-width:calc(100% - 12px);max-height:calc(100% - 12px);resize:both;display:flex;flex-direction:column;border:1px solid #2a617d;border-radius:10px;overflow:hidden;background:#082034f2;color:#e9f7ff;box-shadow:0 10px 28px #00152277;backdrop-filter:blur(8px)}.flight-panel.collapsed{height:auto!important;min-height:0;resize:none}header{display:flex;flex:0 0 auto;justify-content:space-between;align-items:start;padding:12px 14px;border-bottom:1px solid #28516b;cursor:grab;user-select:none}header:active{cursor:grabbing}header p{margin:0;color:#65d8ff;font-size:10px;letter-spacing:.12em}h2{margin:3px 0 0;font-size:17px}.panel-actions{display:flex;gap:7px}.panel-actions button{border:1px solid #41718a;border-radius:5px;padding:6px 8px;background:#123c56;color:#dff6ff;font-size:12px;line-height:16px;cursor:pointer}.table-scroll{flex:1;overflow:auto}table{width:100%;min-width:820px;border-collapse:collapse;font-size:12px}th{position:sticky;top:0;z-index:1;padding:10px;background:#123c56;color:#bfe8f9;text-align:left;white-space:nowrap}td{padding:9px 10px;border-bottom:1px solid #1e455d;white-space:nowrap}tbody tr{cursor:pointer}tbody tr:hover{background:#124967}tbody tr.active{background:#1f6687;outline:1px solid #65d8ff}td b,td small{display:block}td small{margin-top:3px;color:#9bbdce;font-family:ui-monospace,monospace}</style>
+<style scoped>
+table { width: 100%; min-width: 820px; border-collapse: collapse; font-size: 12px; }
+th { position: sticky; top: 0; z-index: 1; padding: 10px; background: #123c56; color: #bfe8f9; text-align: left; white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid #1e455d; white-space: nowrap; }
+tbody tr { cursor: pointer; }
+tbody tr:hover, tbody tr:focus-visible { background: #124967; }
+tbody tr.active { background: #1f6687; outline: 1px solid #65d8ff; outline-offset: -1px; }
+td b, td small { display: block; }
+td small { margin-top: 3px; color: #9bbdce; font-family: ui-monospace, monospace; }
+</style>

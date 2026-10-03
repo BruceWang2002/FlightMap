@@ -1,25 +1,36 @@
+/* Global foundations only; each component owns its layout. */
+:root {
+  --surface-panel: #082034f2;
+  --surface-input: #123d56;
+  --surface-card: #103a52;
+  --border: #387594;
+  --text-primary: #effaff;
+  --text-muted: #a7c6d7;
+  --accent: #53d0fc;
+  --warning: #fbbf80;
+  --radius-control: 6px;
+  --space-panel: 14px;
+}
 html, body, #app { width: 100%; height: 100%; margin: 0; overflow: hidden; }
 * { box-sizing: border-box; }
-body { min-width: 320px; }
-button, select, input { touch-action: manipulation; }
-.analysis-panel { max-height: calc(100% - 32px); overflow-y: auto; overscroll-behavior: contain; }
-.flight-panel { z-index: 3000 !important; }
-
-@media (max-width: 760px) {
-  .sidebar-content { padding: 14px !important; }
-  .sidebar-content header .subtle, .sidebar-content .details { display: none; }
-  .sidebar-content h1 { font-size: 21px; }
-  .sidebar-content .collapse-section { padding: 10px 0; }
-  .sidebar-content .control-group { gap: 9px; margin-top: 10px; }
-  .sidebar-content .metrics { margin: 11px 0; }
-  .sidebar-content .metrics b { font-size: 17px; }
-  .sidebar-content .airport-filter { grid-template-columns: repeat(3, 1fr); padding: 8px; }
-  .flight-panel { top: auto !important; bottom: 8px !important; left: 8px !important; right: auto !important; width: calc(100% - 16px) !important; height: 35dvh !important; min-width: 0 !important; min-height: 100px !important; resize: none !important; }
-  .flight-panel .table-scroll { -webkit-overflow-scrolling: touch; }
-  .analysis-panel { top: auto !important; bottom: 8px !important; left: 8px !important; width: calc(100% - 16px) !important; height: 30dvh !important; max-height: 30dvh !important; overflow: hidden; }
-  .analysis-panel .analysis-content { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #58c8ee #11364d; }
-  .analysis-panel .analysis-content::-webkit-scrollbar { width: 7px; }
-  .analysis-panel .analysis-content::-webkit-scrollbar-track { background: #11364d; border-radius: 8px; }
-  .analysis-panel .analysis-content::-webkit-scrollbar-thumb { background: #58c8ee; border-radius: 8px; }
-  .overview-control { transform: scale(.82); transform-origin: bottom right; }
+body {
+  min-width: 320px;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  background: #071725;
 }
+button, select, input { touch-action: manipulation; }
+.tool-content { padding: var(--space-panel); }
+.tool-content label { display: block; color: var(--text-muted); margin-bottom: 12px; }
+.tool-content select, .tool-content input[type="number"] {
+  width: 100%; min-height: 36px; padding: 8px; margin-top: 5px;
+  border: 1px solid var(--border); border-radius: var(--radius-control);
+  background: var(--surface-input); color: var(--text-primary); font: inherit;
+}
+.tool-content .check { display: flex; align-items: center; gap: 8px; }
+.tool-content input[type="range"] { width: 100%; accent-color: var(--accent); }
+.tool-content button { min-height: 36px; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: var(--radius-control); background: var(--surface-input); color: var(--text-primary); cursor: pointer; }
+.tool-content button:disabled { opacity: .5; cursor: default; }
+.tool-content .hint { color: var(--text-muted); line-height: 1.6; }
+.tool-content .warning { color: var(--warning); line-height: 1.6; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

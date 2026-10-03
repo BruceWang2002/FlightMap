@@ -4,125 +4,259 @@
 import * as Cesium from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { ALTITUDE_BANDS, baseLayerById } from '../config/mapLayers'
-import { featuresWithinRadius, nearestFeatures } from '../utils/spatialAnalysis'
+import { ALTITUDE_BANDS, airportTypeById, baseLayerById } from '../config/mapLayers'
+import { haversineKm, trackSegments, validCoordinate } from '../utils/spatialAnalysis'
+import { analysisIsVisible, visibleAircraft } from '../utils/mapSelection'
+import { AIRPORT_SYMBOLS, MAP_VISUAL } from '../config/visualRules'
 import aircraftRed from '../assets/aircraft/AircraftRed.gltf?url'
 import aircraftBlue from '../assets/aircraft/AircraftBlue.gltf?url'
 import aircraftWhite from '../assets/aircraft/AircraftWhite.gltf?url'
 
-const props = defineProps({ flights: { type: Array, required: true }, airports: { type: Array, default: () => [] }, showLabels: Boolean, baseLayerId: { type: String, default: 'osm-hot' }, selectedIcao24: String, analysisEnabled: Boolean, analysisMode: { type: String, default: 'nearest' }, analysisRadiusKm: { type: Number, default: 50 }, showAnalysisResults: { type: Boolean, default: true }, includeSmallAirports: Boolean, showTerrain: { type: Boolean, default: true }, showLighting: { type: Boolean, default: true }, showBuildings: { type: Boolean, default: true } })
-const emit = defineEmits(['select', 'clear'])
+const props = defineProps({
+  flights: { type: Array, required: true }, airports: { type: Array, default: () => [] },
+  track: { type: Array, default: () => [] }, selectedAirport: Object, airportFocusVersion: Number, selectedIcao24: String,
+  showAirports: Boolean, airportTypes: { type: Array, default: () => [] }, showLabels: Boolean,
+  baseLayerId: { type: String, default: 'osm-hot' }, analysisResults: Object,
+  weatherPoint: Object, weatherLayerId: { type: String, default: 'none' },
+  analysisEnabled: Boolean, showAnalysisResults: { type: Boolean, default: true },
+  showTerrain: Boolean, showLighting: Boolean, showBuildings: Boolean,
+})
+const emit = defineEmits(['select', 'select-airport', 'clear', 'weather-status'])
 const container = ref(null)
-let viewer
-let buildingTileset
-let terrainLoaded = false
-let worldTerrainProvider
-
-function band(altitude) { return ALTITUDE_BANDS.find((item) => altitude >= item.min && altitude < item.max) ?? ALTITUDE_BANDS[0] }
-function modelUrl(altitude) { if (altitude < 3000) return aircraftRed; if (altitude < 9000) return aircraftBlue; return aircraftWhite }
-function nearestAnalysisFlights(selectedFlight) {
-  if (!selectedFlight || !props.analysisEnabled) return []
-  return nearestFeatures(selectedFlight, props.flights.filter((flight) => flight.properties.icao24 !== selectedFlight.properties.icao24), 1).map((item) => item.feature)
+let viewer, buildingTileset, terrainPromise, buildingsPromise, resizeObserver
+let disposed = false
+let weatherImagery
+const sources = {}
+const ionAvailable = Boolean(import.meta.env.VITE_CESIUM_ION_TOKEN)
+const analysisVisible = () => analysisIsVisible(props)
+const cssColor = value => Cesium.Color.fromCssColorString(value)
+const flightAltitude = flight => Number.isFinite(flight.properties?.altitude_m) ? flight.properties.altitude_m : 0
+const airportAltitude = airport => Number.isFinite(airport.properties?.elevation_ft) ? airport.properties.elevation_ft * .3048 : 0
+const position = (point, altitude = 0) => Cesium.Cartesian3.fromDegrees(point[0], point[1], altitude)
+const label = text => ({
+  text, font: '12px sans-serif', pixelOffset: new Cesium.Cartesian2(0, -26),
+  fillColor: Cesium.Color.WHITE, showBackground: true,
+  backgroundColor: Cesium.Color.BLACK.withAlpha(.7), disableDepthTestDistance: Number.POSITIVE_INFINITY,
+})
+function band(altitude) {
+  return ALTITUDE_BANDS.find(item => altitude >= item.min && altitude < item.max) ?? ALTITUDE_BANDS[0]
+}
+function modelUrl(altitude) {
+  return altitude < 3000 ? aircraftRed : altitude < 9000 ? aircraftBlue : aircraftWhite
 }
 function updateBaseLayer() {
-  if (!viewer) return
+  if (!viewer || disposed) return
   const source = baseLayerById(props.baseLayerId)
   viewer.imageryLayers.removeAll()
   viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({ url: source.cesiumUrl, credit: source.attribution }))
+  weatherImagery = null
+  updateWeatherLayer()
+}
+function updateWeatherLayer() {
+  if (!viewer || disposed) return
+  if (weatherImagery) viewer.imageryLayers.remove(weatherImagery, true)
+  weatherImagery = null
+  emit('weather-status', '')
+  const key = import.meta.env.VITE_OPENWEATHER_API_KEY
+  if (props.weatherLayerId === 'none' || !key) return
+  const provider = new Cesium.UrlTemplateImageryProvider({
+    url: `https://tile.openweathermap.org/map/${props.weatherLayerId}/{z}/{x}/{y}.png?appid=${key}`, credit: '© OpenWeather',
+  })
+  const layer = viewer.imageryLayers.addImageryProvider(provider)
+  layer.alpha = 1
+  weatherImagery = layer
+  emit('weather-status', '三维天气图层已启用；瓦片透明像素由数据提供方决定。')
+  provider.errorEvent.addEventListener(() => {
+    if (!disposed && weatherImagery === layer) emit('weather-status', '三维天气瓦片加载失败，请检查网络及天气 Key。')
+  })
+}
+function renderWeatherPoint() {
+  if (!viewer || disposed) return
+  sources.weather.entities.removeAll()
+  const feature = props.weatherPoint
+  if (!feature || !validCoordinate(feature.geometry?.coordinates)) return
+  const entity = sources.weather.entities.add({ position: position(feature.geometry.coordinates),
+    point: { pixelSize: 15, color: cssColor(MAP_VISUAL.weather), outlineColor: Cesium.Color.WHITE, outlineWidth: 2,
+      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+    label: { ...label(feature.properties.label), heightReference: Cesium.HeightReference.CLAMP_TO_GROUND },
+  })
+  entity.weatherData = feature
 }
 async function updateWorldContext() {
-  if (!viewer) return
-  if (props.showTerrain) {
-    if (terrainLoaded) {
-      viewer.terrainProvider = worldTerrainProvider
-      viewer.scene.globe.enableLighting = props.showLighting
-    } else {
-      try {
-        worldTerrainProvider = await Cesium.createWorldTerrainAsync({ requestVertexNormals: true, requestWaterMask: true })
-        viewer.terrainProvider = worldTerrainProvider
-        viewer.scene.globe.enableLighting = props.showLighting; terrainLoaded = true
-      } catch (error) { console.warn('Cesium World Terrain 未加载；请检查 Cesium ion token 与网络连接。', error) }
-    }
-  } else {
-    viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider()
-    viewer.scene.globe.enableLighting = props.showLighting
+  if (!viewer || disposed) return
+  viewer.scene.globe.enableLighting = props.showLighting
+  // Optional ion assets must never block the map or restore a disabled toggle after a slow response.
+  if (!props.showTerrain || !ionAvailable) viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider()
+  else {
+    terrainPromise ??= Cesium.createWorldTerrainAsync({ requestVertexNormals: true, requestWaterMask: true })
+      .catch(error => { terrainPromise = null; console.warn('世界高程加载失败，保留默认地球。', error); return null })
+    const terrain = await terrainPromise
+    if (!disposed && terrain && props.showTerrain) viewer.terrainProvider = terrain
   }
-  if (props.showBuildings) {
-    if (buildingTileset) buildingTileset.show = true
-    else {
-      try { buildingTileset = await Cesium.createOsmBuildingsAsync({ enableShowOutline: false }); viewer.scene.primitives.add(buildingTileset) } catch (error) { console.warn('Cesium OSM Buildings 未加载；请检查 Cesium ion token 与网络连接。', error) }
-    }
-  } else if (buildingTileset) buildingTileset.show = false
+  if (disposed) return
+  if (buildingTileset) buildingTileset.show = props.showBuildings
+  else if (props.showBuildings && ionAvailable) {
+    buildingsPromise ??= Cesium.createOsmBuildingsAsync({ enableShowOutline: false }).then(tileset => {
+      if (disposed) { tileset.destroy(); return null }
+      buildingTileset = viewer.scene.primitives.add(tileset)
+      buildingTileset.show = props.showBuildings
+      return buildingTileset
+    }).catch(error => { buildingsPromise = null; console.warn('OSM 建筑加载失败，其他功能仍可使用。', error); return null })
+    await buildingsPromise
+  }
 }
 function renderAircraft() {
-  if (!viewer) return
-  viewer.entities.removeAll()
-  const selected = props.flights.find((flight) => flight.properties.icao24 === props.selectedIcao24)
-  const analysisFlights = nearestAnalysisFlights(selected)
-  const analysisIcao24 = new Set(analysisFlights.map((flight) => flight.properties.icao24))
-  const visibleFlights = props.selectedIcao24 ? props.flights.filter((flight) => flight.properties.icao24 === props.selectedIcao24 || analysisIcao24.has(flight.properties.icao24)) : props.flights
-  visibleFlights.forEach((flight) => {
-    const p = flight.properties; const [longitude, latitude] = flight.geometry.coordinates
-    const position = Cesium.Cartesian3.fromDegrees(longitude, latitude, Math.max(p.altitude_m ?? 0, 100))
-    const orientation = Cesium.Transforms.headingPitchRollQuaternion(position, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(90 - (p.track_deg ?? 0)), 0, 0))
-    const entity = viewer.entities.add({
-      id: p.icao24, name: p.callsign || p.icao24, position, orientation,
-      model: { uri: modelUrl(p.altitude_m ?? 0), minimumPixelSize: p.icao24 === props.selectedIcao24 ? 94 : analysisIcao24.has(p.icao24) ? 72 : 52, maximumScale: 220, scale: .22, runAnimations: false, color: p.icao24 === props.selectedIcao24 ? Cesium.Color.YELLOW : analysisIcao24.has(p.icao24) ? Cesium.Color.CYAN : Cesium.Color.fromCssColorString(band(p.altitude_m ?? 0).color) },
-      label: { show: props.showLabels || analysisIcao24.has(p.icao24), text: `${analysisIcao24.has(p.icao24) ? '邻近 · ' : ''}${p.callsign || p.icao24}`, font: '12px sans-serif', pixelOffset: new Cesium.Cartesian2(0, -32), fillColor: Cesium.Color.WHITE, showBackground: true, backgroundColor: Cesium.Color.BLACK.withAlpha(.6), scale: .82 },
-      description: `<strong>${p.callsign || p.icao24}</strong><br>高度：${Math.round(p.altitude_m ?? 0)} m<br>速度：${Math.round(p.velocity_ms ?? 0)} m/s<br>航向：${Math.round(p.track_deg ?? 0)}°`,
+  if (!viewer || disposed) return
+  sources.aircraft.entities.removeAll()
+  viewer.selectedEntity = undefined
+  const retained = new Set(analysisVisible() ? props.analysisResults.aircraftResults.map(item => item.feature.properties.icao24) : [])
+  visibleAircraft(props)
+    .forEach(flight => {
+      const p = flight.properties, altitude = flightAltitude(flight)
+      const selected = p.icao24 === props.selectedIcao24
+      const location = position(flight.geometry.coordinates, altitude)
+      const entity = sources.aircraft.entities.add({
+        id: p.icao24, position: location,
+        orientation: Cesium.Transforms.headingPitchRollQuaternion(location,
+          new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(90 - (p.track_deg ?? 0)), 0, 0)),
+        model: { uri: modelUrl(altitude), minimumPixelSize: selected ? 90 : retained.has(p.icao24) ? 70 : 52,
+          maximumScale: 220, scale: .22, runAnimations: false,
+          color: cssColor(selected ? MAP_VISUAL.selected : Number.isFinite(p.altitude_m) ? band(altitude).color : MAP_VISUAL.unknown) },
+        label: { ...label(p.callsign || p.icao24), show: props.showLabels || selected || retained.has(p.icao24) },
+      })
+      entity.flightData = flight
+      if (selected) viewer.selectedEntity = entity
     })
-    entity.flightData = flight
-    if (p.icao24 === props.selectedIcao24) viewer.selectedEntity = entity
+}
+function airportImage(airport) {
+  const symbols = AIRPORT_SYMBOLS
+  const selected = airport.properties.ident === props.selectedAirport?.properties.ident
+  const color = selected ? MAP_VISUAL.selected : airportTypeById(airport.properties.type).color
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="16" cy="16" r="13" fill="${color}" stroke="white" stroke-width="2"/><text x="16" y="21" text-anchor="middle" font-family="sans-serif" font-size="16" fill="white">${symbols[airport.properties.type] ?? '●'}</text></svg>`)
+}
+function renderAirports() {
+  if (!viewer || disposed) return
+  sources.airports.entities.removeAll()
+  const resultItems = analysisVisible() ? props.analysisResults.airportResults : []
+  const forced = new Map(resultItems.map(item => [item.feature.properties.ident, item.feature]))
+  if (props.selectedAirport) forced.set(props.selectedAirport.properties.ident, props.selectedAirport)
+  const rectangle = viewer.camera.computeViewRectangle()
+  // Approximate Leaflet zoom thresholds by camera height, keeping small airfields off world views.
+  const cameraHeight = viewer.camera.positionCartographic.height
+  if (props.showAirports && !props.selectedIcao24 && !props.selectedAirport && rectangle) {
+    props.airports.forEach(airport => {
+      const point = airport.geometry?.coordinates, type = airport.properties.type
+      if (!validCoordinate(point) || !props.airportTypes.includes(type)) return
+      const maximumHeight = 60_000_000 / 2 ** (airportTypeById(type).minZoom - 1)
+      if (cameraHeight > maximumHeight || !Cesium.Rectangle.contains(rectangle, Cesium.Cartographic.fromDegrees(...point.slice(0, 2)))) return
+      forced.set(airport.properties.ident, airport)
+    })
+  }
+  forced.forEach(airport => {
+    const matched = resultItems.find(item => item.feature.properties.ident === airport.properties.ident)
+    const entity = sources.airports.entities.add({
+      id: airport.properties.ident, position: position(airport.geometry.coordinates, airportAltitude(airport)),
+      billboard: { image: airportImage(airport), width: Math.max(18, airportTypeById(airport.properties.type).radius * 3),
+        height: Math.max(18, airportTypeById(airport.properties.type).radius * 3), heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY },
+      label: { ...label(`${airport.properties.ident}${matched ? ' · ' + matched.distanceKm.toFixed(1) + ' km' : ''}`),
+        show: Boolean(matched) || airport === props.selectedAirport },
+    })
+    entity.airportData = airport
   })
-  renderAnalysis()
+}
+function corridorHeight(coordinate) {
+  // Telemetry heights are retained. Missing heights remain a ground projection, not invented data.
+  let closest = null, distance = Infinity
+  for (const point of props.track) {
+    if (!validCoordinate(point.geometry?.coordinates) || !Number.isFinite(point.properties?.altitude_m)) continue
+    const delta = haversineKm(coordinate, point.geometry.coordinates)
+    if (delta < distance) { distance = delta; closest = point }
+  }
+  return closest ? flightAltitude(closest) : 0
 }
 function renderAnalysis() {
-  if (!viewer || !props.analysisEnabled || !props.showAnalysisResults || !props.selectedIcao24) return
-  const origin = props.flights.find((flight) => flight.properties.icao24 === props.selectedIcao24)
-  if (!origin) return
-  const [longitude, latitude] = origin.geometry.coordinates
-  const otherFlights = props.flights.filter((flight) => flight.properties.icao24 !== props.selectedIcao24)
-  const airportCandidates = props.airports.filter((airport) => ['large_airport', 'medium_airport', ...(props.includeSmallAirports ? ['small_airport'] : [])].includes(airport.properties.type))
-  const airportResults = props.analysisMode === 'radius'
-    ? featuresWithinRadius(origin, airportCandidates, props.analysisRadiusKm)
-    : ['large_airport', 'medium_airport', ...(props.includeSmallAirports ? ['small_airport'] : [])].flatMap((type) => nearestFeatures(origin, airportCandidates.filter((airport) => airport.properties.type === type), 1))
-  const aircraftResults = props.analysisMode === 'radius' ? featuresWithinRadius(origin, otherFlights, props.analysisRadiusKm) : nearestFeatures(origin, otherFlights, 1)
-  if (props.analysisMode === 'radius') viewer.entities.add({ position: Cesium.Cartesian3.fromDegrees(longitude, latitude), ellipse: { semiMajorAxis: props.analysisRadiusKm * 1000, semiMinorAxis: props.analysisRadiusKm * 1000, material: Cesium.Color.MEDIUMPURPLE.withAlpha(.24), outline: true, outlineColor: Cesium.Color.MEDIUMPURPLE, height: 40 } })
-  airportResults.forEach(({ feature, distanceKm }) => {
-    const [lng, lat] = feature.geometry.coordinates
-    const originAltitude = Math.max(origin.properties.altitude_m ?? 0, 100)
-    viewer.entities.add({ polyline: { positions: [Cesium.Cartesian3.fromDegrees(longitude, latitude, originAltitude), Cesium.Cartesian3.fromDegrees(lng, lat, 20)], width: 2, material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.ORANGE, dashLength: 12 }) } })
-    viewer.entities.add({ position: Cesium.Cartesian3.fromDegrees(lng, lat, 60), point: { pixelSize: 12, color: Cesium.Color.ORANGE, outlineColor: Cesium.Color.WHITE, outlineWidth: 2 }, label: { text: `机场 ${feature.properties.ident}\n${distanceKm.toFixed(1)} km`, font: '12px sans-serif', pixelOffset: new Cesium.Cartesian2(0, -18), showBackground: true, backgroundColor: Cesium.Color.BLACK.withAlpha(.7), fillColor: Cesium.Color.WHITE } })
+  if (!viewer || disposed) return
+  sources.analysis.entities.removeAll()
+  if (!analysisVisible()) return
+  const result = props.analysisResults
+  const originPoint = result.origin.geometry.coordinates
+  result.geometry.features.forEach(feature => {
+    const ring = feature.geometry.coordinates[0]
+    sources.analysis.entities.add({ polygon: {
+      hierarchy: new Cesium.PolygonHierarchy(ring.slice(0, -1).map(point => position(point))),
+      material: cssColor(MAP_VISUAL.queryFill).withAlpha(.16), outline: false,
+    } })
   })
-  aircraftResults.forEach(({ feature, distanceKm }) => {
-    const [lng, lat] = feature.geometry.coordinates
-    const altitude = Math.max(feature.properties.altitude_m ?? 0, 100)
-    viewer.entities.add({ polyline: { positions: [Cesium.Cartesian3.fromDegrees(longitude, latitude, Math.max(origin.properties.altitude_m ?? 0, 100)), Cesium.Cartesian3.fromDegrees(lng, lat, altitude)], width: 2, material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.CYAN, dashLength: 10 }) } })
-    viewer.entities.add({ position: Cesium.Cartesian3.fromDegrees(lng, lat, altitude), point: { pixelSize: 13, color: Cesium.Color.AQUA, outlineColor: Cesium.Color.WHITE, outlineWidth: 2 }, label: { text: `飞机 ${feature.properties.callsign || feature.properties.icao24}\n${distanceKm.toFixed(1)} km\n航向 ${Math.round(feature.properties.track_deg ?? 0)}°`, font: '12px sans-serif', pixelOffset: new Cesium.Cartesian2(0, -18), showBackground: true, backgroundColor: Cesium.Color.BLACK.withAlpha(.7), fillColor: Cesium.Color.WHITE } })
-  })
+  function connection(item, targetHeight, material, width) {
+    const from = item.closestCoordinate ?? originPoint
+    const fromHeight = item.closestCoordinate ? corridorHeight(from) : flightAltitude(result.origin)
+    sources.analysis.entities.add({ polyline: {
+      positions: [position(from, fromHeight), position(item.feature.geometry.coordinates, targetHeight)],
+      // Straight 3D connections use both endpoints' actual altitude, never a ground-only great circle.
+      arcType: Cesium.ArcType.NONE, width, material,
+    } })
+  }
+  result.airportResults.forEach(item => connection(item, airportAltitude(item.feature),
+    new Cesium.PolylineDashMaterialProperty({ color: cssColor(MAP_VISUAL.airportLink), dashLength: 12 }), 2))
+  result.aircraftResults.forEach(item => connection(item, flightAltitude(item.feature),
+    new Cesium.PolylineArrowMaterialProperty(cssColor(MAP_VISUAL.aircraftLink)), 8))
+}
+function renderTrack() {
+  if (!viewer || disposed) return
+  sources.track.entities.removeAll()
+  const segments = trackSegments(props.track)
+  // Coordinates come from the same features, so archived altitude is available without another request.
+  const heights = new Map(props.track.map(point => [point.geometry?.coordinates, flightAltitude(point)]))
+  segments.forEach(segment => sources.track.entities.add({ polyline: {
+    positions: segment.map(point => position(point, heights.get(point) ?? 0)), width: 3,
+    arcType: Cesium.ArcType.NONE, material: cssColor(MAP_VISUAL.track),
+  } }))
+}
+function renderAll() { renderAircraft(); renderAirports(); renderAnalysis(); renderTrack() }
+function focusAirport(airport) {
+  if (viewer && !disposed && airport) viewer.camera.flyTo({ destination: position(airport.geometry.coordinates, 80_000), duration: .5 })
 }
 onMounted(() => {
-  const ionToken = import.meta.env.VITE_CESIUM_ION_TOKEN
-  if (ionToken) Cesium.Ion.defaultAccessToken = ionToken
-  viewer = new Cesium.Viewer(container.value, { animation: false, timeline: false, geocoder: false, homeButton: false, sceneModePicker: true, navigationHelpButton: false, baseLayerPicker: false, baseLayer: false, infoBox: true, selectionIndicator: true, shouldAnimate: false })
+  if (ionAvailable) Cesium.Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_ION_TOKEN
+  viewer = new Cesium.Viewer(container.value, {
+    animation: false, timeline: false, geocoder: false, homeButton: false,
+    sceneModePicker: true, navigationHelpButton: false, baseLayerPicker: false, baseLayer: false,
+    infoBox: false, selectionIndicator: true, shouldAnimate: false,
+  })
   viewer.clock.shouldAnimate = false
-  viewer.scene.screenSpaceCameraController.inertiaSpin = 0
-  viewer.scene.screenSpaceCameraController.inertiaTranslate = 0
-  viewer.scene.screenSpaceCameraController.inertiaZoom = 0
+  const controller = viewer.scene.screenSpaceCameraController
+  controller.inertiaSpin = controller.inertiaTranslate = controller.inertiaZoom = 0
   viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(8.7, 50.4, 3_000_000) })
-  // Handle picking ourselves so selection is emitted only once and blank clicks clear it.
-  viewer.screenSpaceEventHandler.setInputAction((movement) => {
-    if (!viewer || viewer.isDestroyed()) return
+  for (const name of ['aircraft', 'airports', 'analysis', 'track', 'weather']) {
+    sources[name] = new Cesium.CustomDataSource(name)
+    viewer.dataSources.add(sources[name])
+  }
+  viewer.camera.moveEnd.addEventListener(renderAirports)
+  viewer.screenSpaceEventHandler.setInputAction(movement => {
+    if (disposed) return
     const picked = viewer.scene.pick(movement.position)
     if (picked?.id?.flightData) emit('select', picked.id.flightData)
-    else emit('clear')
+    else if (picked?.id?.airportData) emit('select-airport', picked.id.airportData)
+    else if (picked?.id?.weatherData) return
+    else { viewer.selectedEntity = undefined; emit('clear') }
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
-  updateBaseLayer(); renderAircraft(); updateWorldContext()
+  resizeObserver = new ResizeObserver(() => { if (!disposed) viewer.resize() })
+  resizeObserver.observe(container.value)
+  updateBaseLayer(); renderAll(); updateWorldContext(); focusAirport(props.selectedAirport); renderWeatherPoint()
 })
-onUnmounted(() => { if (viewer && !viewer.isDestroyed()) viewer.destroy() })
-watch(() => [props.flights, props.airports, props.selectedIcao24, props.showLabels, props.analysisEnabled, props.analysisMode, props.analysisRadiusKm, props.showAnalysisResults, props.includeSmallAirports], renderAircraft, { deep: true })
+onUnmounted(() => { disposed = true; resizeObserver?.disconnect(); if (viewer && !viewer.isDestroyed()) viewer.destroy() })
+watch(() => [props.flights, props.selectedIcao24, props.showLabels, props.analysisEnabled, props.showAnalysisResults, props.analysisResults], renderAll)
+watch(() => [props.airports, props.airportTypes, props.showAirports, props.selectedAirport], renderAirports)
+watch(() => [props.selectedAirport, props.airportFocusVersion], ([airport]) => focusAirport(airport))
+watch(() => props.track, renderTrack)
 watch(() => props.baseLayerId, updateBaseLayer)
+watch(() => props.weatherLayerId, updateWeatherLayer)
+watch(() => props.weatherPoint, renderWeatherPoint)
 watch(() => [props.showTerrain, props.showLighting, props.showBuildings], updateWorldContext)
 </script>
 
-<style scoped>.map { width: 100%; height: 100%; min-height: 0; }</style>
+<style scoped>
+.map { position: relative; z-index: 0; width: 100%; height: 100%; min-height: 0; }
+</style>
