@@ -72,3 +72,13 @@ test('airport browser displays selected metadata honestly and sanitizes external
   assert.ok(html.includes('原始提供方未记录'))
   assert.ok(!html.includes('href="javascript:'))
 })
+
+test('project profile starts collapsed and renders the provided photo and contact links', async () => {
+  const html = await render('ProjectProfile', { photoUrl: '/assets/test-photo.png' })
+  assert.match(html, /<details\b[^>]*>/)
+  assert.doesNotMatch(html, /<details\b[^>]*\sopen(?:\s|=|>)/)
+  assert.match(html, /<summary>\s*个人信息/)
+  assert.match(html, /<img[^>]*src="\/assets\/test-photo\.png"/)
+  assert.match(html, /href="https:\/\/wa\.me\/\d+"/)
+  assert.match(html, /href="mailto:[^"\s]+@gmail\.com"/)
+})

@@ -69,6 +69,7 @@
         @select="selectFlight" @select-airport="selectAirport" @clear="clearSelection" />
       <CesiumMap v-else v-bind="sharedMapProps" :weather-layer-id="weatherLayerId" @weather-status="weatherTileStatus = $event" :show-terrain="showTerrain" :show-lighting="showLighting" :show-buildings="showBuildings"
         @select="selectFlight" @select-airport="selectAirport" @clear="clearSelection" />
+      <ProjectProfile :photo-url="profilePhoto" />
       <MapAnalysisPanel v-if="analysisEnabled" :flight="selectedFlight" :results="analysisResults"
         v-model:mode="analysisMode" v-model:radius-km="analysisRadiusKm" v-model:corridor-km="corridorKm"
         v-model:show-results="showAnalysisResults" v-model:include-small-airports="includeSmallAirports"
@@ -103,6 +104,8 @@ import LeafletMap from './Leaflet_Map.vue'
 import MapAnalysisPanel from './MapAnalysisPanel.vue'
 import FlightListPanel from './FlightListPanel.vue'
 import ResizableLayout from './ResizableLayout.vue'
+import ProjectProfile from './ProjectProfile.vue'
+import profilePhoto from '../assets/project-owner.png'
 
 // Load 3D code only when requested; phones opening the 2D map need not load it.
 const CesiumMap = defineAsyncComponent(() => import('./Cesium_Map.vue'))
